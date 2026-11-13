@@ -30,6 +30,27 @@ for (PortolanCollection collection : catalog.collections()) {
 
 This project provides that capability.
 
+## STAC reader implementations
+
+The normal API uses the lightweight reader bundled in `portolan-java`; it remains the default and
+runs on Java 17:
+
+```java
+PortolanCatalog catalog = PortolanCatalog.open(path);
+```
+
+An optional provider delegates STAC discovery and loading to Parquetry:
+
+```java
+PortolanCatalog catalog =
+    PortolanCatalog.open(path, StacReaderBackend.PARQUETRY);
+```
+
+The optional `org.portolan:portolan-java-parquetry` artifact must be present at runtime. It currently
+requires Java 25 with preview features enabled because that is what the pinned Parquetry version
+requires. Merely using the core does not introduce Parquetry or raise the Java 17 baseline. See
+[Parquetry reader](docs/parquetry-reader.md) for setup, runtime, and compatibility details.
+
 ## Scope
 
 The expected API includes concepts such as:
@@ -204,5 +225,6 @@ The long-term objective is simple:
 - [Examples](docs/examples.md) shows basic API usage.
 - [Development](docs/development.md) lists Maven and Make targets.
 - [Distribution](docs/distribution.md) explains releases and Maven repositories.
+- [Parquetry reader](docs/parquetry-reader.md) explains the optional STAC backend.
 
 ---

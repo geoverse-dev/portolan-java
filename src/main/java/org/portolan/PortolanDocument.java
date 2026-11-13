@@ -9,10 +9,16 @@ import java.util.List;
 abstract class PortolanDocument {
   protected final ObjectNode data;
   protected final URI href;
+  protected final StacDocumentReader reader;
 
   PortolanDocument(ObjectNode data, URI href) {
+    this(data, href, JsonSupport::readObject);
+  }
+
+  PortolanDocument(ObjectNode data, URI href, StacDocumentReader reader) {
     this.data = data;
     this.href = href;
+    this.reader = reader;
   }
 
   public String id() {

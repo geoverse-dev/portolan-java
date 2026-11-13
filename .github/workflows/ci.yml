@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-java-17:
+    name: Core / Java 17
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: Test core and enforce coverage
+        run: mvn --batch-mode --no-transfer-progress clean verify
+
+  parquetry-java-25:
+    name: Optional Parquetry reader / Java 25 preview
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: tileverse-io/parquetry
+          ref: 876687bc865fb3fc0526bd3c7d69d030db6a7d44
+          path: .ci/parquetry
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+      - name: Install Parquetry test fixture artifacts
+        working-directory: .ci/parquetry
+        run: ./mvnw --batch-mode --no-transfer-progress -DskipTests -pl :parquetry-core -am install
+      - name: Install pinned Parquetry STAC dependencies
+        working-directory: .ci/parquetry
+        run: ./mvnw --batch-mode --no-transfer-progress -Dmaven.test.skip=true -pl :parquetry-stac -am install
+      - name: Install portolan-java core
+        run: mvn --batch-mode --no-transfer-progress -DskipTests install
+      - name: Test optional Parquetry provider
+        run: mvn --batch-mode --no-transfer-progress -f parquetry-reader/pom.xml clean verify
