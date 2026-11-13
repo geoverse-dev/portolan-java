@@ -1,6 +1,6 @@
 package org.portolan;
 
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.net.URI;
 
 /** A STAC link with its HREF resolved against the containing document. */
