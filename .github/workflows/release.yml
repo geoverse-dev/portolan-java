@@ -45,12 +45,13 @@ jobs:
         shell: bash
         run: |
           cp pom.xml "target/portolan-java-${RELEASE_VERSION}.pom"
+          cd target
           sha256sum \
-            "target/portolan-java-${RELEASE_VERSION}.jar" \
-            "target/portolan-java-${RELEASE_VERSION}-sources.jar" \
-            "target/portolan-java-${RELEASE_VERSION}-javadoc.jar" \
-            "target/portolan-java-${RELEASE_VERSION}.pom" \
-            > target/SHA256SUMS
+            "portolan-java-${RELEASE_VERSION}.jar" \
+            "portolan-java-${RELEASE_VERSION}-sources.jar" \
+            "portolan-java-${RELEASE_VERSION}-javadoc.jar" \
+            "portolan-java-${RELEASE_VERSION}.pom" \
+            > SHA256SUMS
 
       - name: Publish to GitHub Packages
         if: vars.PUBLISH_GITHUB_PACKAGES != 'false'
