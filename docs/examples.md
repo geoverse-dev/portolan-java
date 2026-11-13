@@ -11,7 +11,7 @@ GitHub Packages hosts tagged versions. Add its repository and the dependency:
 <repositories>
   <repository>
     <id>github</id>
-    <url>https://maven.pkg.github.com/jemacchi/portolan-java</url>
+    <url>https://maven.pkg.github.com/geoverse-dev/portolan-java</url>
   </repository>
 </repositories>
 
