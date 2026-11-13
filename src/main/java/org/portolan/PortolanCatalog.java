@@ -42,6 +42,53 @@ public final class PortolanCatalog extends PortolanDocument {
     return StacReaderProviders.open(source, backend);
   }
 
+  /** Reads and diagnoses a catalog without rejecting non-conformant metadata. */
+  public static PortolanReadResult inspect(Path source) {
+    return inspect(source, StacReaderBackend.LIGHTWEIGHT);
+  }
+
+  /** Reads and diagnoses a catalog with the selected STAC backend. */
+  public static PortolanReadResult inspect(Path source, StacReaderBackend backend) {
+    return StrictPortolanValidator.inspect(open(source, backend));
+  }
+
+  /** Reads and diagnoses a catalog without rejecting non-conformant metadata. */
+  public static PortolanReadResult inspect(URI source) {
+    return inspect(source, StacReaderBackend.LIGHTWEIGHT);
+  }
+
+  /** Reads and diagnoses a catalog with the selected STAC backend. */
+  public static PortolanReadResult inspect(URI source, StacReaderBackend backend) {
+    return StrictPortolanValidator.inspect(open(source, backend));
+  }
+
+  /** Reads a catalog and rejects errors in the supported metadata-only Portolan profile. */
+  public static PortolanCatalog openStrict(Path source) {
+    return openStrict(source, StacReaderBackend.LIGHTWEIGHT);
+  }
+
+  /** Reads strictly with the selected STAC backend. */
+  public static PortolanCatalog openStrict(Path source, StacReaderBackend backend) {
+    return requireStrict(inspect(source, backend));
+  }
+
+  /** Reads a catalog and rejects errors in the supported metadata-only Portolan profile. */
+  public static PortolanCatalog openStrict(URI source) {
+    return openStrict(source, StacReaderBackend.LIGHTWEIGHT);
+  }
+
+  /** Reads strictly with the selected STAC backend. */
+  public static PortolanCatalog openStrict(URI source, StacReaderBackend backend) {
+    return requireStrict(inspect(source, backend));
+  }
+
+  private static PortolanCatalog requireStrict(PortolanReadResult result) {
+    if (!result.strictlyValid()) {
+      throw new PortolanValidationException(result);
+    }
+    return result.catalog();
+  }
+
   static PortolanCatalog openLightweight(URI source) {
     return new PortolanCatalog(JsonSupport.readObject(source), source);
   }
