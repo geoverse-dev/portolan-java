@@ -1,7 +1,7 @@
 package org.portolan;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -88,8 +88,8 @@ public final class PortolanValidator {
       return;
     }
     assets
-        .fields()
-        .forEachRemaining(
+        .properties()
+        .forEach(
             entry -> {
               String assetPath = path + ".assets." + entry.getKey();
               JsonNode asset = entry.getValue();

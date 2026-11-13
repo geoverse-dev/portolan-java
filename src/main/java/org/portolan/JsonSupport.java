@@ -1,9 +1,10 @@
 package org.portolan;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -11,10 +12,11 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import tools.jackson.core.JacksonException;
 
 final class JsonSupport {
   static final ObjectMapper MAPPER =
-      new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+      JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
 
   private static final HttpClient HTTP =
       HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
@@ -28,7 +30,7 @@ final class JsonSupport {
         throw new IllegalArgumentException("Expected JSON object");
       }
       return (ObjectNode) node;
-    } catch (IOException e) {
+    } catch (JacksonException e) {
       throw new IllegalArgumentException("Invalid JSON", e);
     }
   }
@@ -55,6 +57,8 @@ final class JsonSupport {
         throw new IllegalArgumentException("Expected JSON object from " + href);
       }
       return (ObjectNode) node;
+    } catch (JacksonException e) {
+      throw new IllegalArgumentException("Cannot read JSON from " + href, ioCause(e));
     } catch (IOException e) {
       throw new IllegalArgumentException("Cannot read JSON from " + href, e);
     } catch (InterruptedException e) {
@@ -67,9 +71,16 @@ final class JsonSupport {
     try {
       Files.createDirectories(path.getParent());
       MAPPER.writeValue(path.toFile(), data);
+    } catch (JacksonException e) {
+      throw new IllegalArgumentException("Cannot write JSON to " + path, ioCause(e));
     } catch (IOException e) {
       throw new IllegalArgumentException("Cannot write JSON to " + path, e);
     }
+  }
+
+  private static IOException ioCause(JacksonException failure) {
+    Throwable cause = failure.getCause();
+    return cause instanceof IOException io ? io : new IOException(failure);
   }
 
   static String text(JsonNode node, String field) {

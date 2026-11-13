@@ -1,7 +1,7 @@
 package org.portolan;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.node.ObjectNode;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.AtomicMoveNotSupportedException;
@@ -123,7 +123,7 @@ public final class PortolanRegistry {
       return List.of();
     }
     List<String> licenses = new ArrayList<>();
-    value.fieldNames().forEachRemaining(licenses::add);
+    value.propertyNames().forEach(licenses::add);
     licenses.sort(Comparator.naturalOrder());
     return List.copyOf(licenses);
   }
@@ -287,8 +287,8 @@ public final class PortolanRegistry {
       return updated;
     }
     assets
-        .fields()
-        .forEachRemaining(
+        .properties()
+        .forEach(
             entry -> {
               JsonNode asset = entry.getValue();
               if (!asset.isObject()) {
