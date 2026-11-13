@@ -25,6 +25,7 @@ install:
 
 parquetry-install:
 	test -n "$(PARQUETRY_HOME)"
+	cd "$(PARQUETRY_HOME)" && ./mvnw -DskipTests -pl :parquetry-core -am install
 	cd "$(PARQUETRY_HOME)" && ./mvnw -Dmaven.test.skip=true -pl :parquetry-stac -am install
 	$(MVN) -DskipTests install
 

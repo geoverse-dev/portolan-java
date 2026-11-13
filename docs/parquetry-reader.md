@@ -37,7 +37,9 @@ make parquetry-test
 The first target installs the required Parquetry modules and the Java 17 Portolan core in the local
 Maven repository. The second builds and tests `org.portolan:portolan-java-parquetry`.
 The pinned upstream revision currently has an unrelated cloud integration test-compilation mismatch,
-so its bootstrap uses `-Dmaven.test.skip=true`; the Portolan provider tests are not skipped.
+so its bootstrap first packages the `parquetry-io` and `parquetry-core` test fixture JARs with
+`-DskipTests`, then uses `-Dmaven.test.skip=true` for the remaining reactor. This two-stage build
+also works with an empty Maven repository. The Portolan provider tests are not skipped.
 
 ## Use
 

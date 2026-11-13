@@ -41,6 +41,9 @@ jobs:
           distribution: temurin
           java-version: "25"
           cache: maven
+      - name: Install Parquetry test fixture artifacts
+        working-directory: .ci/parquetry
+        run: ./mvnw --batch-mode --no-transfer-progress -DskipTests -pl :parquetry-core -am install
       - name: Install pinned Parquetry STAC dependencies
         working-directory: .ci/parquetry
         run: ./mvnw --batch-mode --no-transfer-progress -Dmaven.test.skip=true -pl :parquetry-stac -am install
