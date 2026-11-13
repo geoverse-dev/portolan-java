@@ -49,12 +49,12 @@ Add both artifacts to the application (the provider is intentionally not pulled 
 <dependency>
   <groupId>org.portolan</groupId>
   <artifactId>portolan-java</artifactId>
-  <version>0.1.4-SNAPSHOT</version>
+  <version>0.1.5-SNAPSHOT</version>
 </dependency>
 <dependency>
   <groupId>org.portolan</groupId>
   <artifactId>portolan-java-parquetry</artifactId>
-  <version>0.1.4-SNAPSHOT</version>
+  <version>0.1.5-SNAPSHOT</version>
 </dependency>
 ```
 
