@@ -8,7 +8,11 @@ import java.util.List;
 /** A loaded STAC Collection within a Portolan catalog. */
 public final class PortolanCollection extends PortolanDocument {
   PortolanCollection(ObjectNode data, URI href) {
-    super(data, href);
+    this(data, href, JsonSupport::readObject);
+  }
+
+  PortolanCollection(ObjectNode data, URI href, StacDocumentReader reader) {
+    super(data, href, reader);
   }
 
   public List<PortolanItem> items() {
@@ -17,9 +21,9 @@ public final class PortolanCollection extends PortolanDocument {
       if (!"item".equals(link.rel())) {
         continue;
       }
-      ObjectNode item = JsonSupport.readObject(link.href());
+      ObjectNode item = reader.read(link.href());
       if ("Feature".equals(JsonSupport.text(item, "type"))) {
-        result.add(new PortolanItem(item, link.href()));
+        result.add(new PortolanItem(item, link.href(), reader));
       }
     }
     return List.copyOf(result);

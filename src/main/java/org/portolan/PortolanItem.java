@@ -8,4 +8,8 @@ public final class PortolanItem extends PortolanDocument {
   PortolanItem(ObjectNode data, URI href) {
     super(data, href);
   }
+
+  PortolanItem(ObjectNode data, URI href, StacDocumentReader reader) {
+    super(data, href, reader);
+  }
 }
