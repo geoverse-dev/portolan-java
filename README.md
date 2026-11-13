@@ -51,6 +51,39 @@ requires Java 25 with preview features enabled because that is what the pinned P
 requires. Merely using the core does not introduce Parquetry or raise the Java 17 baseline. See
 [Parquetry reader](docs/parquetry-reader.md) for setup, runtime, and compatibility details.
 
+## Tolerant and strict reading
+
+The original `open` API remains tolerant and unchanged. Applications that need diagnostics can use
+`inspect`, while applications that want to reject catalogs with metadata or structural errors can
+use `openStrict`:
+
+```java
+PortolanCatalog tolerant = PortolanCatalog.open(uri);
+
+PortolanReadResult inspected = PortolanCatalog.inspect(uri);
+for (PortolanFinding finding : inspected.findings()) {
+    System.out.printf("%s %s: %s%n",
+        finding.severity(), finding.requirement(), finding.message());
+}
+
+try {
+    PortolanCatalog strict = PortolanCatalog.openStrict(uri);
+} catch (PortolanValidationException invalid) {
+    PortolanReadResult result = invalid.result();
+}
+```
+
+Strict reading currently implements the supported metadata-only Portolan v0.2.0 profile. It checks
+JSON/STAC metadata, Portolan metadata, hierarchy, links, assets, providers, licenses, and bounding
+boxes while traversing the catalog. The result explicitly exposes which scopes were checked and
+which remain unchecked.
+
+It does **not** inspect asset bytes or verify live hosting behavior. Those checks, and authoritative
+full-catalog conformance, remain the responsibility of
+[`rashid`](https://github.com/portolan-sdi/rashid). Therefore `strictlyValid()` means valid for the
+documented Java strict-reading scope, not an unconditional Portolan compliance certification. See
+[Strict reading](docs/strict-reading.md) for the complete contract.
+
 ## Scope
 
 The expected API includes concepts such as:
@@ -226,5 +259,6 @@ The long-term objective is simple:
 - [Development](docs/development.md) lists Maven and Make targets.
 - [Distribution](docs/distribution.md) explains releases and Maven repositories.
 - [Parquetry reader](docs/parquetry-reader.md) explains the optional STAC backend.
+- [Strict reading](docs/strict-reading.md) documents inspection, strict mode, and its validation scope.
 
 ---
