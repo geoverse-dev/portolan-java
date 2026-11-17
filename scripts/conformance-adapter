@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+set -eu
+repo_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+classpath_file="$repo_dir/target/conformance-classpath.txt"
+mvn -q -f "$repo_dir/pom.xml" test-compile dependency:build-classpath \
+  -Dmdep.outputFile="$classpath_file" -Dmdep.includeScope=test >&2
+exec java -cp "$repo_dir/target/test-classes:$repo_dir/target/classes:$(cat "$classpath_file")" \
+  org.portolan.ConformanceAdapter

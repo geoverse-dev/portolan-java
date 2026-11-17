@@ -26,6 +26,36 @@ jobs:
       - name: Test core and enforce coverage
         run: mvn --batch-mode --no-transfer-progress clean verify
 
+  conformance-read-profile:
+    name: Conformance / Read Profile v1
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/checkout@v6
+        with:
+          repository: geoverse-dev/portolan-conformance
+          ref: v0.1.0
+          path: .ci/portolan-conformance
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - name: Install pinned conformance runner
+        run: python -m pip install .ci/portolan-conformance
+      - name: Run supported conformance profiles
+        run: make check-conformance CONFORMANCE=portolan-conformance
+      - name: Upload conformance report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: portolan-conformance-profiles
+          path: target/portolan-conformance-*.json
+          if-no-files-found: error
+
   parquetry-java-25:
     name: Optional Parquetry reader / Java 25 preview
     runs-on: ubuntu-latest

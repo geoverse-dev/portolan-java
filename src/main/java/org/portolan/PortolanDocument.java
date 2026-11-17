@@ -6,7 +6,8 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 
-abstract class PortolanDocument {
+/** A loaded STAC Catalog, Collection, or Feature document. */
+public abstract class PortolanDocument {
   protected final ObjectNode data;
   protected final URI href;
   protected final StacDocumentReader reader;
@@ -23,6 +24,23 @@ abstract class PortolanDocument {
 
   public String id() {
     return JsonSupport.text(data, "id");
+  }
+
+  public String type() { return JsonSupport.text(data, "type"); }
+
+  public String title() { return JsonSupport.text(data, "title"); }
+
+  public String description() { return JsonSupport.text(data, "description"); }
+
+  public String stacVersion() { return JsonSupport.text(data, "stac_version"); }
+
+  public List<String> stacExtensions() {
+    JsonNode values = data.get("stac_extensions");
+    List<String> result = new ArrayList<>();
+    if (values != null && values.isArray()) {
+      for (JsonNode value : values) if (value.isTextual()) result.add(value.asText());
+    }
+    return List.copyOf(result);
   }
 
   public URI href() {
@@ -101,5 +119,14 @@ abstract class PortolanDocument {
                       ((ObjectNode) asset).deepCopy()));
             });
     return result;
+  }
+
+  /** Returns documents referenced by direct {@code child} links. */
+  public List<PortolanDocument> children() {
+    List<PortolanDocument> result = new ArrayList<>();
+    for (PortolanLink link : links()) {
+      if ("child".equals(link.rel())) result.add(PortolanDocuments.open(link.href(), reader));
+    }
+    return List.copyOf(result);
   }
 }

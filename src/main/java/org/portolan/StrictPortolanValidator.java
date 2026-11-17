@@ -56,7 +56,7 @@ final class StrictPortolanValidator {
     validateCommon(data, path, "Catalog", rootSchema, findings);
     validateDocumentationLinks(data, path, findings);
     validateStructuralLinks(data, path, root, false, findings);
-    validateAssets(data, path, findings);
+    validateAssets(data, path, rootSchema, findings);
     for (PortolanLink link : links(data, href)) {
       if (!"child".equals(link.rel())) continue;
       ObjectNode child = read(reader, link, path, findings);
@@ -88,7 +88,7 @@ final class StrictPortolanValidator {
     validateCommon(data, path, "Collection", rootSchema, findings);
     validateDocumentationLinks(data, path, findings);
     validateStructuralLinks(data, path, false, false, findings);
-    validateAssets(data, path, findings);
+    validateAssets(data, path, rootSchema, findings);
     validateLicense(data, path, findings);
     validateProviders(data, path, findings);
     validateBbox(data.at("/extent/spatial/bbox/0"), path + ".extent.spatial.bbox[0]", findings);
@@ -106,13 +106,13 @@ final class StrictPortolanValidator {
         }
       } else if ("item".equals(link.rel())) {
         ObjectNode item = read(reader, link, path, findings);
-        if (item != null) validateItem(item, link.href(), findings);
+        if (item != null) validateItem(item, link.href(), rootSchema, findings);
       }
     }
   }
 
   private static void validateItem(
-      ObjectNode data, URI href, List<PortolanFinding> findings) {
+      ObjectNode data, URI href, String rootSchema, List<PortolanFinding> findings) {
     String path = "item[" + href + "]";
     requireText(data, "id", "PORTO-CORE-019", path, findings);
     requireText(data, "collection", "PORTO-CORE-019", path, findings);
@@ -134,7 +134,7 @@ final class StrictPortolanValidator {
           "datetime or a start/end datetime interval is required");
     }
     validateStructuralLinks(data, path, false, true, findings);
-    validateAssets(data, path, findings);
+    validateAssets(data, path, rootSchema, findings);
     validateBbox(data.get("bbox"), path + ".bbox", findings);
   }
 
@@ -207,7 +207,7 @@ final class StrictPortolanValidator {
   }
 
   private static void validateAssets(
-      ObjectNode data, String path, List<PortolanFinding> findings) {
+      ObjectNode data, String path, String rootSchema, List<PortolanFinding> findings) {
     JsonNode assets = data.get("assets");
     if (assets == null) return;
     if (!assets.isObject()) {
@@ -223,11 +223,15 @@ final class StrictPortolanValidator {
       }
       String href = text(asset, "href");
       if (href.contains("://") && !href.startsWith("https://")) {
-        error(
-            findings,
-            "PORTO-CORE-023",
-            assetPath + ".href",
-            "absolute asset href must use https");
+        boolean version03 = PortolanSpecVersion.V0_3_0.schemaUri().equals(rootSchema);
+        boolean hasHttpsAlternate = hasHttpsAlternate(asset.get("alternate"));
+        if (version03 && hasHttpsAlternate) {
+          warning(findings, "PORTO-CORE-087", assetPath + ".href",
+              "non-HTTPS asset href uses an HTTPS alternate");
+        } else {
+          error(findings, version03 ? "PORTO-CORE-087" : "PORTO-CORE-023",
+              assetPath + ".href", "absolute asset href must use https");
+        }
       }
       if (blank(text(asset, "type"))) {
         error(findings, "PORTO-CORE-025", assetPath + ".type", "asset media type is required");
@@ -237,6 +241,15 @@ final class StrictPortolanValidator {
         error(findings, "PORTO-CORE-025", assetPath + ".roles", "at least one asset role is required");
       }
     });
+  }
+
+  private static boolean hasHttpsAlternate(JsonNode alternates) {
+    if (alternates == null || !alternates.isObject()) return false;
+    for (JsonNode alternate : alternates) {
+      String href = text(alternate, "href");
+      if (href != null && href.startsWith("https://")) return true;
+    }
+    return false;
   }
 
   private static void validateLicense(

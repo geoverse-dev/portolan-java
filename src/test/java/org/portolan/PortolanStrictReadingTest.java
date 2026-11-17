@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import tools.jackson.databind.node.ObjectNode;
 
 class PortolanStrictReadingTest {
   @TempDir Path directory;
@@ -29,6 +30,116 @@ class PortolanStrictReadingTest {
     assertEquals(
         Set.of(PortolanValidationScope.ASSET_BYTES, PortolanValidationScope.LIVE_HOSTING),
         result.uncheckedScopes());
+  }
+
+  @Test
+  void strictReadingSelectsVersion03RulesAndAllowsHttpsAssetAlternate() throws Exception {
+    writeValidCatalog();
+    String v02 = PortolanSpecVersion.V0_2_0.schemaUri();
+    String v03 = PortolanSpecVersion.V0_3_0.schemaUri();
+    Files.writeString(directory.resolve("catalog.json"),
+        Files.readString(directory.resolve("catalog.json")).replace(v02, v03));
+    String collection = Files.readString(directory.resolve("collection.json"))
+        .replace(v02, v03)
+        .replace("\"href\":\"https://example.test/roads.parquet\"",
+            "\"href\":\"s3://example/roads.parquet\","
+                + "\"alternate\":{\"https\":{\"href\":\"https://example.test/roads.parquet\"}}" );
+    Files.writeString(directory.resolve("collection.json"), collection);
+
+    PortolanReadResult result = PortolanCatalog.inspect(directory);
+
+    assertEquals(PortolanSpecVersion.V0_3_0, result.specVersion());
+    assertTrue(result.strictlyValid());
+    assertTrue(result.findings().stream().anyMatch(finding ->
+        finding.requirementId().equals("PORTO-CORE-087")
+            && finding.severity() == PortolanSeverity.WARNING));
+    assertEquals("root", PortolanCatalog.openStrict(directory).id());
+  }
+
+  @Test
+  void version03RejectsNonHttpsAssetsWithoutUsableHttpsAlternates() throws Exception {
+    writeValidCatalog();
+    String v02 = PortolanSpecVersion.V0_2_0.schemaUri();
+    String v03 = PortolanSpecVersion.V0_3_0.schemaUri();
+    Files.writeString(
+        directory.resolve("catalog.json"),
+        Files.readString(directory.resolve("catalog.json")).replace(v02, v03));
+    ObjectNode collection =
+        (ObjectNode)
+            JsonSupport.MAPPER.readTree(
+                Files.readString(directory.resolve("collection.json")).replace(v02, v03));
+    collection.set(
+        "assets",
+        JsonSupport.MAPPER.readTree(
+            """
+            {"missing":{"href":"s3://example/missing.parquet",
+              "type":"application/vnd.apache.parquet","roles":["data"]},
+             "array":{"href":"s3://example/array.parquet",
+              "type":"application/vnd.apache.parquet","roles":["data"],"alternate":[]},
+             "nonobject":{"href":"s3://example/nonobject.parquet",
+              "type":"application/vnd.apache.parquet","roles":["data"],"alternate":{"bad":null}},
+             "http":{"href":"s3://example/http.parquet",
+              "type":"application/vnd.apache.parquet","roles":["data"],
+              "alternate":{"http":{"href":"http://example.test/data.parquet"}}}}
+            """));
+    Files.writeString(
+        directory.resolve("collection.json"), JsonSupport.MAPPER.writeValueAsString(collection));
+
+    PortolanReadResult result = PortolanCatalog.inspect(directory);
+
+    assertFalse(result.strictlyValid());
+    assertEquals(
+        4,
+        result.findings().stream()
+            .filter(finding -> finding.requirementId().equals("PORTO-CORE-087"))
+            .count());
+  }
+
+  @Test
+  void strictReadingChecksEachWgs84BboxBoundary() throws Exception {
+    writeValidCatalog();
+    String collection = Files.readString(directory.resolve("collection.json"));
+    String originalLink =
+        "{\"rel\":\"item\",\"href\":\"item.json\","
+            + "\"type\":\"application/geo+json\",\"title\":\"Road item\"}";
+    StringBuilder links = new StringBuilder(originalLink);
+    double[][] bboxes = {
+      {181, -2, 182, 4},
+      {-10, -2, -181, 4},
+      {-10, -2, 181, 4},
+      {-10, -91, 10, 4},
+      {-10, -2, 10, 91},
+      {-10, 5, 10, 4}
+    };
+    String itemTemplate = Files.readString(directory.resolve("item.json"));
+    for (int index = 0; index < bboxes.length; index++) {
+      String name = "boundary-" + index;
+      links.append(",{\"rel\":\"item\",\"href\":\"")
+          .append(name)
+          .append(".json\",\"type\":\"application/geo+json\",\"title\":\"Boundary\"}");
+      String bbox =
+          "["
+              + bboxes[index][0]
+              + ","
+              + bboxes[index][1]
+              + ","
+              + bboxes[index][2]
+              + ","
+              + bboxes[index][3]
+              + "]";
+      Files.writeString(
+          directory.resolve(name + ".json"),
+          itemTemplate.replace("\"road-1\"", "\"" + name + "\"").replace("[-1,-2,3,4]", bbox));
+    }
+    Files.writeString(directory.resolve("collection.json"), collection.replace(originalLink, links));
+
+    PortolanReadResult result = PortolanCatalog.inspect(directory);
+
+    assertEquals(
+        bboxes.length,
+        result.findings().stream()
+            .filter(finding -> finding.requirementId().equals("PORTO-CORE-041"))
+            .count());
   }
 
   @Test

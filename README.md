@@ -73,7 +73,7 @@ try {
 }
 ```
 
-Strict reading currently implements the supported metadata-only Portolan v0.2.0 profile. It checks
+Strict reading currently implements the supported metadata-only Portolan 0.2.0 and 0.3.0 profiles. It checks
 JSON/STAC metadata, Portolan metadata, hierarchy, links, assets, providers, licenses, and bounding
 boxes while traversing the catalog. The result explicitly exposes which scopes were checked and
 which remain unchecked.
@@ -83,6 +83,19 @@ full-catalog conformance, remain the responsibility of
 [`rashid`](https://github.com/portolan-sdi/rashid). Therefore `strictlyValid()` means valid for the
 documented Java strict-reading scope, not an unconditional Portolan compliance certification. See
 [Strict reading](docs/strict-reading.md) for the complete contract.
+
+## Conformance checks
+
+Install Java 17 and Maven.
+Set `JAVA_HOME` to the Java 17 JDK.
+Install the pinned `portolan-conformance` revision from the CI workflow.
+Then run all supported profiles:
+
+```bash
+make check-conformance
+```
+
+Run one profile with `make check-conformance-read` or `make check-conformance-metadata`.
 
 ## Scope
 

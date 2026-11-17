@@ -14,6 +14,9 @@ public record PortolanAsset(
     String description,
     ObjectNode raw) {
 
+  /** Returns the HREF exactly as authored in the containing document. */
+  public String originalHref() { return JsonSupport.text(raw, "href"); }
+
   public AssetFormat format() {
     String path = href == null || href.getPath() == null ? "" : href.getPath().toLowerCase();
     if ("application/vnd.apache.parquet".equals(mediaType) || path.endsWith(".parquet")) {

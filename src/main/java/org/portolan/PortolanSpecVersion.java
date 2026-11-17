@@ -7,6 +7,9 @@ public record PortolanSpecVersion(String version, String schemaUri, boolean supp
   public static final PortolanSpecVersion V0_2_0 =
       new PortolanSpecVersion(
           "0.2.0", "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json", true);
+  public static final PortolanSpecVersion V0_3_0 =
+      new PortolanSpecVersion(
+          "0.3.0", "https://schemas.portolan-sdi.org/portolan/v0.3.0/schema.json", true);
 
   public PortolanSpecVersion {
     Objects.requireNonNull(version, "version");
@@ -16,6 +19,9 @@ public record PortolanSpecVersion(String version, String schemaUri, boolean supp
   static PortolanSpecVersion fromSchema(String schema) {
     if (V0_2_0.schemaUri.equals(schema)) {
       return V0_2_0;
+    }
+    if (V0_3_0.schemaUri.equals(schema)) {
+      return V0_3_0;
     }
     String prefix = "https://schemas.portolan-sdi.org/portolan/v";
     String suffix = "/schema.json";
