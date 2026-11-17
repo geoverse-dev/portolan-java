@@ -2,7 +2,9 @@
 
 A lightweight Java implementation of the Portolan specification.
 
-`portolan-java` provides JVM applications with a native API for reading, navigating, creating, validating, and reasoning about Portolan catalogs.
+`portolan-java` provides JVM applications with a native API for reading, navigating, inspecting, and validating Portolan catalogs.
+
+The current library is read-only. It does not create or modify catalogs.
 
 The project is intended to make Portolan a **language-independent ecosystem**, rather than one whose reference implementation is implicitly tied to Python or to a particular CLI.
 
@@ -97,7 +99,7 @@ make check-conformance
 
 Run one profile with `make check-conformance-read` or `make check-conformance-metadata`.
 
-## Scope
+## Current scope
 
 The expected API includes concepts such as:
 
@@ -109,7 +111,6 @@ PortolanAsset
 PortolanLink
 
 CatalogReader
-CatalogWriter
 HrefResolver
 Validator
 ValidationResult
@@ -119,7 +120,6 @@ ConformanceChecker
 Responsibilities include:
 
 * reading Portolan/STAC structures;
-* writing Portolan/STAC structures;
 * catalog traversal;
 * collection discovery;
 * item and asset discovery;
@@ -215,8 +215,7 @@ org.portolan
 │   ├── PortolanAsset
 │   └── PortolanLink
 ├── io
-│   ├── CatalogReader
-│   └── CatalogWriter
+│   └── CatalogReader
 ├── validation
 │   ├── Validator
 │   └── ValidationResult
@@ -227,6 +226,12 @@ org.portolan
 ```
 
 The actual package structure should remain deliberately small.
+
+## Next steps
+
+Catalog writing is planned but is not part of the current public API. A future implementation must
+define its behavior through shared write, round-trip, and mutation-safety conformance profiles
+before it is published as an SDK capability.
 
 ## Design principles
 
