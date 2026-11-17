@@ -150,7 +150,7 @@ Portolan catalog
               └── appropriate implementation handles data
 ```
 
-Consequently, the core should not require GeoTools, GeoServer, GDAL, or other large geospatial frameworks simply to understand a Portolan catalog.
+Consequently, the core should not require large geospatial frameworks simply to understand a Portolan catalog.
 
 ## Relationship with `portolan-python`
 
@@ -187,42 +187,20 @@ same catalog
     └── portolan-java   → same semantic interpretation
 ```
 
-## Relationship with GeoServer
-
-One of the initial consumers of this project is expected to be `geoserver-portolan`.
-
-However, this project is **not a GeoServer library**.
-
-The dependency direction is:
-
-```text
-portolan-java
-      ↑
-      │
-geoserver-portolan
-```
-
-and never:
-
-```text
-portolan-java
-      ↓
-GeoServer
-```
-
-This separation makes the library reusable from any JVM application.
-
 ## Potential consumers
 
 Examples include:
 
-* GeoServer;
 * GeoTools applications;
 * JVM-based data pipelines;
 * desktop GIS applications;
 * Spark applications;
 * catalog services;
 * custom enterprise geospatial applications.
+
+The external
+[`geoserver-portolan`](https://github.com/geoverse-dev/geoserver-portolan)
+plugin is one example of a consumer that uses this library.
 
 ## Package structure
 
@@ -254,8 +232,8 @@ The actual package structure should remain deliberately small.
 
 1. Portolan specification is the source of truth.
 2. Native Java API with no Python runtime dependency.
-3. No GeoServer dependency.
-4. No GeoTools dependency unless eventually justified by an optional module.
+3. No application-server dependency.
+4. No geospatial framework dependency unless eventually justified by an optional module.
 5. No implementation of GeoParquet, COG, PMTiles, etc. in core.
 6. Small dependency graph.
 7. Stable API suitable for embedding.
