@@ -1,4 +1,4 @@
-.PHONY: help setup test coverage check check-conformance check-conformance-read check-conformance-metadata build install parquetry-install parquetry-test clean
+.PHONY: help setup test coverage check check-conformance prepare-conformance-adapter check-conformance-read check-conformance-metadata build install parquetry-install parquetry-test clean
 
 MVN ?= mvn
 CONFORMANCE_REPOSITORY ?= https://github.com/geoverse-dev/portolan-conformance.git
@@ -24,13 +24,18 @@ check:
 
 check-conformance: check-conformance-read check-conformance-metadata
 
-check-conformance-read:
+prepare-conformance-adapter:
+	$(MVN) -q test-compile dependency:build-classpath \
+		-Dmdep.outputFile=target/conformance-classpath.txt \
+		-Dmdep.includeScope=test
+
+check-conformance-read: prepare-conformance-adapter
 	$(CONFORMANCE) run \
 		--profile read \
 		--adapter '$(CURDIR)/scripts/conformance-adapter' \
 		--report '$(CONFORMANCE_READ_REPORT)'
 
-check-conformance-metadata:
+check-conformance-metadata: prepare-conformance-adapter
 	$(CONFORMANCE) run \
 		--profile metadata-validation \
 		--adapter '$(CURDIR)/scripts/conformance-adapter' \
