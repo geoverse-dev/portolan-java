@@ -19,7 +19,8 @@ public final class PortolanDocuments {
   public static PortolanDocument open(URI source) {
     Objects.requireNonNull(source, "source");
     validateScheme(source);
-    return open(source, JsonSupport::readObject);
+    JsonSupport.JsonDocument loaded = JsonSupport.readDocument(source);
+    return from(loaded.data(), loaded.href(), JsonSupport::readObject);
   }
 
   static PortolanDocument open(URI source, StacDocumentReader reader) {

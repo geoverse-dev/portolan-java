@@ -1,4 +1,4 @@
-.PHONY: help setup test coverage check check-conformance prepare-conformance-adapter check-conformance-read check-conformance-metadata build install parquetry-install parquetry-test clean
+.PHONY: help setup test coverage check check-conformance check-conformance-all prepare-conformance-adapter check-conformance-read check-conformance-write check-conformance-metadata build install parquetry-install parquetry-test clean
 
 MVN ?= mvn
 CONFORMANCE_REPOSITORY ?= https://github.com/geoverse-dev/portolan-conformance.git
@@ -6,6 +6,7 @@ CONFORMANCE_VERSION ?= v0.1.1
 CONFORMANCE ?= uvx --from 'git+$(CONFORMANCE_REPOSITORY)@$(CONFORMANCE_VERSION)' portolan-conformance
 CONFORMANCE_READ_REPORT ?= target/portolan-conformance-read.json
 CONFORMANCE_METADATA_REPORT ?= target/portolan-conformance-metadata.json
+CONFORMANCE_WRITE_REPORT ?= target/portolan-conformance-write.json
 
 help:
 	@printf '%s\n' 'Targets: setup test coverage check check-conformance build install parquetry-install parquetry-test clean'
@@ -24,6 +25,8 @@ check:
 
 check-conformance: check-conformance-read check-conformance-metadata
 
+check-conformance-all: check-conformance-read check-conformance-metadata check-conformance-write
+
 prepare-conformance-adapter:
 	$(MVN) -q test-compile dependency:build-classpath \
 		-Dmdep.outputFile=target/conformance-classpath.txt \
@@ -40,6 +43,12 @@ check-conformance-metadata: prepare-conformance-adapter
 		--profile metadata-validation \
 		--adapter '$(CURDIR)/scripts/conformance-adapter' \
 		--report '$(CONFORMANCE_METADATA_REPORT)'
+
+check-conformance-write: prepare-conformance-adapter
+	$(CONFORMANCE) run \
+		--profile write \
+		--adapter '$(CURDIR)/scripts/conformance-adapter' \
+		--report '$(CONFORMANCE_WRITE_REPORT)'
 
 build:
 	$(MVN) package

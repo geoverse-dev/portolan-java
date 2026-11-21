@@ -90,7 +90,8 @@ public final class PortolanCatalog extends PortolanDocument {
   }
 
   static PortolanCatalog openLightweight(URI source) {
-    return new PortolanCatalog(JsonSupport.readObject(source), source);
+    JsonSupport.JsonDocument loaded = JsonSupport.readDocument(source);
+    return new PortolanCatalog(loaded.data(), loaded.href());
   }
 
   public List<PortolanCollection> collections() {

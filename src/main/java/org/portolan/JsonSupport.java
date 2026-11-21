@@ -21,7 +21,7 @@ final class JsonSupport {
       JsonMapper.builder().enable(SerializationFeature.INDENT_OUTPUT).build();
 
   private static final HttpClient HTTP =
-      HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NEVER).build();
+      HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build();
 
   private JsonSupport() {}
 
@@ -38,8 +38,13 @@ final class JsonSupport {
   }
 
   static ObjectNode readObject(URI href) {
+    return readDocument(href).data();
+  }
+
+  static JsonDocument readDocument(URI href) {
     try {
       JsonNode node;
+      URI effectiveHref = href;
       if ("http".equals(href.getScheme()) || "https".equals(href.getScheme())) {
         HttpRequest request =
             HttpRequest.newBuilder(href).header("User-Agent", "portolan-java").GET().build();
@@ -54,6 +59,7 @@ final class JsonSupport {
         }
         String body = response.body();
         node = MAPPER.readTree(body);
+        effectiveHref = response.uri();
       } else if ("file".equals(href.getScheme())) {
         node = readTree(Path.of(href));
       } else if (href.getScheme() == null) {
@@ -65,7 +71,7 @@ final class JsonSupport {
       if (!node.isObject()) {
         throw new IllegalArgumentException("Expected JSON object from " + href);
       }
-      return (ObjectNode) node;
+      return new JsonDocument((ObjectNode) node, effectiveHref);
     } catch (JacksonException e) {
       throw new PortolanReadException(PortolanReadException.Code.INVALID_JSON,
           "Cannot read JSON from " + href, ioCause(e));
@@ -81,6 +87,8 @@ final class JsonSupport {
           "Interrupted reading JSON from " + href, e);
     }
   }
+
+  record JsonDocument(ObjectNode data, URI href) {}
 
   private static JsonNode readTree(Path path) throws IOException {
     try (InputStream stream = Files.newInputStream(path)) {

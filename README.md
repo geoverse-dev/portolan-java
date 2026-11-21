@@ -4,7 +4,8 @@ A lightweight Java implementation of the Portolan specification.
 
 `portolan-java` provides JVM applications with a native API for reading, navigating, inspecting, and validating Portolan catalogs.
 
-The current library is read-only. It does not create or modify catalogs.
+The library reads catalogs and authors Portolan 0.3.0 metadata in memory.
+It returns storage-independent write plans that applications materialize.
 
 The project is intended to make Portolan a **language-independent ecosystem**, rather than one whose reference implementation is implicitly tied to Python or to a particular CLI.
 
@@ -97,7 +98,9 @@ Then run all supported profiles:
 make check-conformance
 ```
 
-Run one profile with `make check-conformance-read` or `make check-conformance-metadata`.
+Run one profile with `make check-conformance-read`, `make check-conformance-metadata`,
+or `make check-conformance-write`. Use `make check-conformance-all` after updating
+the Conformance pin to a release that contains the write profile.
 
 ## Current scope
 
@@ -109,6 +112,7 @@ PortolanCollection
 PortolanItem
 PortolanAsset
 PortolanLink
+PortolanAuthoring
 
 CatalogReader
 HrefResolver
@@ -229,9 +233,9 @@ The actual package structure should remain deliberately small.
 
 ## Next steps
 
-Catalog writing is planned but is not part of the current public API. A future implementation must
-define its behavior through shared write, round-trip, and mutation-safety conformance profiles
-before it is published as an SDK capability.
+The authoring API creates and edits catalog graphs without storage access.
+Deletion planning requires explicit previously managed metadata keys.
+Storage materialization remains application-owned.
 
 ## Design principles
 

@@ -1,6 +1,9 @@
 package org.portolan;
 
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -15,7 +18,7 @@ import tools.jackson.databind.node.ObjectNode;
 public final class ConformanceAdapter {
   private static final Set<String> OPERATIONS =
       Set.of("document", "inspect", "children", "collections", "items", "assets", "links",
-          "validate_metadata");
+          "items_recursive", "validate_metadata", "plan_write", "edit_plan", "roundtrip");
 
   private ConformanceAdapter() {}
 
@@ -27,9 +30,17 @@ public final class ConformanceAdapter {
       String protocol = JsonSupport.text(request, "protocol_version");
       if (!"1".equals(protocol)) throw error("UNSUPPORTED_PROTOCOL");
       String operation = JsonSupport.text(request, "operation");
-      String uriText = JsonSupport.text(request, "uri");
-      if (operation == null || uriText == null || uriText.isBlank()) throw error("INVALID_REQUEST");
+      if (operation == null) throw error("INVALID_REQUEST");
       if (!OPERATIONS.contains(operation)) throw error("UNSUPPORTED_OPERATION");
+      if (Set.of("plan_write", "edit_plan", "roundtrip").contains(operation)) {
+        JsonNode input = request.get("input");
+        if (input == null || !input.isObject() || request.has("uri")) throw error("INVALID_REQUEST");
+        response = Map.of("status", "ok", "result", authoring(operation, input));
+        System.out.println(JsonSupport.MAPPER.writeValueAsString(response));
+        return;
+      }
+      String uriText = JsonSupport.text(request, "uri");
+      if (uriText == null || uriText.isBlank()) throw error("INVALID_REQUEST");
       URI uri;
       try { uri = URI.create(uriText); } catch (IllegalArgumentException exception) {
         throw error("INVALID_REQUEST");
@@ -44,6 +55,8 @@ public final class ConformanceAdapter {
       response = errorResponse(exception.code);
     } catch (PortolanReadException exception) {
       response = errorResponse(exception.code().name());
+    } catch (PortolanAuthoring.AuthoringException exception) {
+      response = errorResponse(exception.code());
     } catch (Exception exception) {
       System.err.println(exception.getMessage());
       response = errorResponse("READ_ERROR");
@@ -87,11 +100,112 @@ public final class ConformanceAdapter {
       case "collections" -> entries(
           document instanceof PortolanCatalog catalog ? new ArrayList<>(catalog.collections()) : List.of());
       case "items" -> entries(
+          document instanceof PortolanCollection collection ? new ArrayList<>(collection.directItems()) : List.of());
+      case "items_recursive" -> entries(
           document instanceof PortolanCollection collection ? new ArrayList<>(collection.items()) : List.of());
       case "assets" -> assets(document);
       case "links" -> links(document);
       default -> throw error("UNSUPPORTED_OPERATION");
     };
+  }
+
+  private static Map<String, Object> authoring(String operation, JsonNode input) throws Exception {
+    JsonNode graphNode = input.has("graph") ? input.get("graph") : input;
+    PortolanAuthoring.CatalogGraph graph = PortolanAuthoring.CatalogGraph.fromJson(graphNode);
+    if (!"plan_write".equals(operation)) graph = applyChanges(graph, input.get("changes"));
+    List<String> prior = new ArrayList<>();
+    JsonNode priorNode = input.get("prior_managed_keys");
+    if (priorNode != null) {
+      if (!priorNode.isArray()) throw error("INVALID_REQUEST");
+      for (JsonNode value : priorNode) {
+        if (!value.isTextual()) throw error("INVALID_REQUEST");
+        prior.add(value.asText());
+      }
+    }
+    String prefix = JsonSupport.text(input, "key_prefix");
+    PortolanAuthoring.WritePlan plan = new PortolanAuthoring.Planner()
+        .plan(graph, prior, prefix == null ? "" : prefix);
+    if ("roundtrip".equals(operation)) return roundtrip(plan);
+    List<Map<String, Object>> operations = new ArrayList<>();
+    for (PortolanAuthoring.Operation planned : plan.operations()) {
+      Map<String, Object> value = new LinkedHashMap<>();
+      value.put("kind", planned.kind()); value.put("key", planned.key());
+      if ("put".equals(planned.kind())) value.put("content", new String(planned.content(), StandardCharsets.UTF_8));
+      operations.add(value);
+    }
+    Map<String, Object> result = new LinkedHashMap<>();
+    result.put("profile_version", "1"); result.put("spec_version", plan.specVersion());
+    result.put("operations", operations); return result;
+  }
+
+  private static PortolanAuthoring.CatalogGraph applyChanges(
+      PortolanAuthoring.CatalogGraph graph, JsonNode changes) {
+    if (changes == null) return graph;
+    if (!changes.isArray()) throw error("INVALID_REQUEST");
+    PortolanAuthoring.Editor editor = new PortolanAuthoring.Editor(graph);
+    for (JsonNode change : changes) {
+      String kind = JsonSupport.text(change, "kind"), key = JsonSupport.text(change, "key");
+      if (kind == null || key == null) throw error("INVALID_REQUEST");
+      switch (kind) {
+        case "set_field" -> {
+          String field = JsonSupport.text(change, "field");
+          if (field == null || !change.has("value")) throw error("INVALID_REQUEST");
+          editor.setField(key, field, change.get("value"));
+        }
+        case "add_document" -> {
+          JsonNode document = change.get("document");
+          if (document == null || !document.isObject()) throw error("INVALID_REQUEST");
+          editor.addDocument(new PortolanAuthoring.ManagedDocument(key, (ObjectNode) document,
+              JsonSupport.text(change, "parent_key"), JsonSupport.text(change, "relation")));
+        }
+        case "remove_document" -> editor.removeDocument(key);
+        case "set_asset" -> {
+          String assetKey = JsonSupport.text(change, "asset_key"); JsonNode asset = change.get("asset");
+          if (assetKey == null || asset == null || !asset.isObject()) throw error("INVALID_REQUEST");
+          editor.setAsset(key, assetKey, (ObjectNode) asset);
+        }
+        case "remove_asset" -> {
+          String assetKey = JsonSupport.text(change, "asset_key");
+          if (assetKey == null) throw error("INVALID_REQUEST");
+          editor.removeAsset(key, assetKey);
+        }
+        default -> throw error("INVALID_REQUEST");
+      }
+    }
+    return editor.build();
+  }
+
+  private static Map<String, Object> roundtrip(PortolanAuthoring.WritePlan plan) throws Exception {
+    Path root = Files.createTempDirectory("portolan-java-roundtrip-");
+    try {
+      for (PortolanAuthoring.Operation operation : plan.operations()) {
+        if (!"put".equals(operation.kind())) continue;
+        Path target = root.resolve(operation.key()); Files.createDirectories(target.getParent());
+        Files.write(target, operation.content());
+      }
+      List<Map<String, Object>> documents = new ArrayList<>();
+      List<Map<String, Object>> documentation = new ArrayList<>();
+      for (PortolanAuthoring.Operation operation : plan.operations()) {
+        if (!"put".equals(operation.kind())) continue;
+        if (operation.key().endsWith(".json")) {
+          PortolanDocument document = PortolanDocuments.open(root.resolve(operation.key()));
+          documents.add(Map.of("key", operation.key(), "document", document.data()));
+        } else {
+          documentation.add(Map.of("key", operation.key(), "content",
+              new String(operation.content(), StandardCharsets.UTF_8)));
+        }
+      }
+      Map<String, Object> result = new LinkedHashMap<>();
+      result.put("profile_version", "1"); result.put("documents", documents);
+      if (!documentation.isEmpty()) result.put("documentation", documentation);
+      return result;
+    } finally {
+      try (var paths = Files.walk(root)) {
+        paths.sorted(Comparator.reverseOrder()).forEach(path -> {
+          try { Files.deleteIfExists(path); } catch (Exception ignored) { }
+        });
+      }
+    }
   }
 
   private static Map<String, Object> inspect(PortolanDocument document) {
