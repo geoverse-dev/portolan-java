@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-RC[0-9]+"
 
 permissions:
   contents: write
@@ -41,6 +42,9 @@ jobs:
       - name: Test and build release artifacts
         run: mvn --batch-mode --no-transfer-progress -Prelease clean verify
 
+      - name: Run conformance profiles
+        run: make check-conformance-all
+
       - name: Stage release metadata
         shell: bash
         run: |
@@ -71,4 +75,4 @@ jobs:
           "target/portolan-java-${RELEASE_VERSION}.pom"
           target/SHA256SUMS
           --generate-notes
-          --verify-tag
+          --prerelease
