@@ -27,9 +27,9 @@ same complete result when strict opening fails.
 
 ## Supported strict profile
 
-The current implementation recognizes the versioned Portolan v0.2.0 schema URI and checks a
-metadata-only profile while traversing catalogs, nested catalogs, collections, and linked items. The
-checked scopes are:
+The current implementation recognizes the versioned Portolan v0.2.0 and v0.3.0 schema URIs.
+It applies the matching metadata-only profile while traversing catalogs, nested catalogs,
+collections, and linked items. The checked scopes are:
 
 - syntactically readable JSON structure;
 - relevant STAC core metadata;
@@ -39,8 +39,8 @@ checked scopes are:
 Checks include schema/version declarations, required identity and descriptive fields, documentation
 links, structural link metadata, licenses, providers, assets, item metadata, bounding boxes, cycles,
 and unresolved linked documents. Findings use the corresponding Portolan requirement identifier
-where applicable. A future/unknown Portolan schema is reported as unsupported instead of silently
-being interpreted as v0.2.0.
+where applicable. A future or unknown Portolan schema is reported as unsupported instead of
+silently being interpreted as a supported version.
 
 ## Deliberate boundary
 
