@@ -32,10 +32,14 @@ public final class PortolanAuthoring {
     public String code() { return code; }
   }
 
-  public record ManagedDocument(String key, ObjectNode document, String parentKey, String relation) {
+  public record ManagedDocument(String key, ObjectNode document, String parentKey, String relation,
+      String linkTitle) {
     public ManagedDocument {
       document = document.deepCopy();
       relation = relation == null ? "child" : relation;
+    }
+    public ManagedDocument(String key, ObjectNode document, String parentKey, String relation) {
+      this(key, document, parentKey, relation, null);
     }
   }
 
@@ -68,8 +72,10 @@ public final class PortolanAuthoring {
         String key = JsonSupport.text(raw, "key");
         String parent = JsonSupport.text(raw, "parent_key");
         String relation = JsonSupport.text(raw, "relation");
+        String linkTitle = JsonSupport.text(raw, "link_title");
         if (key == null) throw failure("INVALID_REQUEST", "document key is required");
-        documents.add(new ManagedDocument(key, (ObjectNode) raw.get("document"), parent, relation));
+        documents.add(new ManagedDocument(
+            key, (ObjectNode) raw.get("document"), parent, relation, linkTitle));
       }
       List<Documentation> documentation = new ArrayList<>();
       JsonNode rawDocumentation = value.get("documentation");
@@ -106,7 +112,8 @@ public final class PortolanAuthoring {
       ManagedDocument entry = document(key);
       ObjectNode data = entry.document().deepCopy();
       data.set(field, value.deepCopy());
-      documents.put(key, new ManagedDocument(key, data, entry.parentKey(), entry.relation()));
+      documents.put(key, new ManagedDocument(
+          key, data, entry.parentKey(), entry.relation(), entry.linkTitle()));
       return this;
     }
 
@@ -134,6 +141,24 @@ public final class PortolanAuthoring {
       return this;
     }
 
+    public Editor setDocumentation(Documentation entry) {
+      if (!documents.containsKey(entry.ownerKey())) {
+        throw failure("MISSING_REQUIRED_METADATA", "documentation owner is not managed");
+      }
+      if (documents.containsKey(entry.key())) {
+        throw failure("DUPLICATE_OUTPUT_KEY", "logical output keys must be unique");
+      }
+      documentation.put(entry.key(), entry);
+      return this;
+    }
+
+    public Editor removeDocumentation(String key) {
+      if (documentation.remove(key) == null) {
+        throw failure("INVALID_REQUEST", "documentation entry does not exist");
+      }
+      return this;
+    }
+
     public Editor setAsset(String key, String assetKey, ObjectNode asset) {
       ManagedDocument entry = document(key);
       ObjectNode data = entry.document().deepCopy();
@@ -141,7 +166,8 @@ public final class PortolanAuthoring {
       if (existing != null && !existing.isObject()) throw failure("WRITE_ERROR", "assets must be an object");
       ObjectNode assets = existing == null ? JsonSupport.MAPPER.createObjectNode() : (ObjectNode) existing.deepCopy();
       assets.set(assetKey, asset.deepCopy()); data.set("assets", assets);
-      documents.put(key, new ManagedDocument(key, data, entry.parentKey(), entry.relation()));
+      documents.put(key, new ManagedDocument(
+          key, data, entry.parentKey(), entry.relation(), entry.linkTitle()));
       return this;
     }
 
@@ -153,7 +179,8 @@ public final class PortolanAuthoring {
         throw failure("INVALID_REQUEST", "asset does not exist");
       }
       ObjectNode assets = (ObjectNode) existing.deepCopy(); assets.remove(assetKey); data.set("assets", assets);
-      documents.put(key, new ManagedDocument(key, data, entry.parentKey(), entry.relation()));
+      documents.put(key, new ManagedDocument(
+          key, data, entry.parentKey(), entry.relation(), entry.linkTitle()));
       return this;
     }
 
@@ -192,13 +219,23 @@ public final class PortolanAuthoring {
       for (ManagedDocument entry : documents) {
         ObjectNode data = entry.document(); addSchema(data);
         ArrayNode links = links(data); links.add(link("self", Path.of(entry.key()).getFileName().toString(), "application/json"));
-        if (!"catalog.json".equals(entry.key())) links.add(link("root", relative(entry.key(), "catalog.json"), "application/json"));
+        if (!hasRelation(links, "root")) {
+          links.add(link("root", relative(entry.key(), "catalog.json"), "application/json"));
+        }
         if (entry.parentKey() != null) {
           links.add(link("parent", relative(entry.key(), entry.parentKey()), "application/json"));
           ManagedDocument parent = byKey.get(entry.parentKey());
           if (parent == null) throw failure("MISSING_REQUIRED_METADATA", "parent is not managed");
           ArrayNode parentLinks = links(parent.document());
-          parentLinks.add(link(entry.relation(), relative(parent.key(), entry.key()), "application/json"));
+          String title = managedLinkTitle(entry);
+          if (title == null) {
+            throw failure(
+                "MISSING_REQUIRED_METADATA", "managed child and item links require a title");
+          }
+          String mediaType = "item".equals(entry.relation())
+              ? "application/geo+json" : "application/json";
+          parentLinks.add(link(
+              entry.relation(), relative(parent.key(), entry.key()), mediaType, title));
           parent.document().set("links", parentLinks);
           if ("Feature".equals(JsonSupport.text(data, "type"))
               && "Collection".equals(JsonSupport.text(parent.document(), "type"))) {
@@ -303,6 +340,27 @@ public final class PortolanAuthoring {
     ObjectNode value = JsonSupport.MAPPER.createObjectNode(); value.put("rel", rel); value.put("href", href); value.put("type", type); return value;
   }
 
+  private static ObjectNode link(String rel, String href, String type, String title) {
+    ObjectNode value = link(rel, href, type); value.put("title", title); return value;
+  }
+
+  private static boolean hasRelation(ArrayNode links, String relation) {
+    for (JsonNode value : links) {
+      if (relation.equals(JsonSupport.text(value, "rel"))) return true;
+    }
+    return false;
+  }
+
+  private static String managedLinkTitle(ManagedDocument entry) {
+    if (entry.linkTitle() != null && !entry.linkTitle().isEmpty()) return entry.linkTitle();
+    if (Set.of("Catalog", "Collection").contains(JsonSupport.text(entry.document(), "type"))) {
+      return JsonSupport.text(entry.document(), "title");
+    }
+    JsonNode properties = entry.document().get("properties");
+    return properties != null && properties.isObject()
+        ? JsonSupport.text(properties, "title") : null;
+  }
+
   private static JsonNode sorted(JsonNode value) {
     if (value.isObject()) {
       ObjectNode result = JsonSupport.MAPPER.createObjectNode();
@@ -314,7 +372,8 @@ public final class PortolanAuthoring {
   }
 
   private static ManagedDocument copy(ManagedDocument entry) {
-    return new ManagedDocument(entry.key(), entry.document(), entry.parentKey(), entry.relation());
+    return new ManagedDocument(
+        entry.key(), entry.document(), entry.parentKey(), entry.relation(), entry.linkTitle());
   }
   private static boolean safeKey(String key) {
     if (key == null || key.isEmpty() || key.contains("\\") || key.startsWith("/")) return false;

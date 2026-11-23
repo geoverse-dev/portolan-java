@@ -18,7 +18,7 @@ class PortolanAuthoringTest {
         {"spec_version":"0.3.0","documents":[
           {"key":"catalog.json","document":{"type":"Catalog","stac_version":"1.1.0","id":"demo","title":"Demo","description":"Catalog"}},
           {"key":"roads/collection.json","parent_key":"catalog.json","document":{"type":"Collection","stac_version":"1.1.0","id":"roads","title":"Roads","description":"Roads","license":"CC-BY-4.0","extent":{}}},
-          {"key":"roads/item.json","parent_key":"roads/collection.json","relation":"item","document":{"type":"Feature","stac_version":"1.1.0","id":"road-1","collection":"roads","properties":{},"geometry":null}}
+          {"key":"roads/item.json","parent_key":"roads/collection.json","relation":"item","link_title":"Road 1","document":{"type":"Feature","stac_version":"1.1.0","id":"road-1","collection":"roads","properties":{},"geometry":null}}
         ],"documentation":[
           {"owner_key":"catalog.json","key":"README.md","rel":"describedby","content":"# Demo\\n"}
         ]}
@@ -33,7 +33,10 @@ class PortolanAuthoringTest {
     assertEquals("delete", plan.operations().get(4).kind());
     String root = text(plan.operations().get(1));
     assertTrue(root.contains("roads/collection.json"));
-    assertTrue(text(plan.operations().get(2)).contains("\"rel\":\"item\""));
+    assertTrue(root.contains("\"rel\":\"root\""));
+    assertTrue(root.contains("\"title\":\"Roads\""));
+    assertTrue(text(plan.operations().get(2)).contains("\"type\":\"application/geo+json\""));
+    assertTrue(text(plan.operations().get(2)).contains("\"title\":\"Road 1\""));
     assertArrayEquals("# Demo\n".getBytes(StandardCharsets.UTF_8), plan.operations().get(0).content());
     assertArrayEquals(plan.operations().get(0).content(), plan.operations().get(0).content());
   }
@@ -61,6 +64,57 @@ class PortolanAuthoringTest {
     assertEquals("After", JsonSupport.text(edited.documents().get(0).document(), "description"));
     assertEquals(List.of("catalog.json", "new/collection.json"),
         edited.documents().stream().map(PortolanAuthoring.ManagedDocument::key).toList());
+  }
+
+  @Test void editorAddsReplacesAndRemovesDocumentationCopyOnWrite() {
+    PortolanAuthoring.CatalogGraph original = validRoot();
+    PortolanAuthoring.Documentation first = new PortolanAuthoring.Documentation(
+        "catalog.json", "README.md", "describedby", "# First\n", null);
+    PortolanAuthoring.Documentation replacement = new PortolanAuthoring.Documentation(
+        "catalog.json", "README.md", "describedby", "# Second\n", null);
+
+    PortolanAuthoring.CatalogGraph added = new PortolanAuthoring.Editor(original)
+        .setDocumentation(first).build();
+    PortolanAuthoring.CatalogGraph replaced = new PortolanAuthoring.Editor(added)
+        .setDocumentation(replacement).build();
+    PortolanAuthoring.CatalogGraph removed = new PortolanAuthoring.Editor(replaced)
+        .removeDocumentation("README.md").build();
+
+    assertTrue(original.documentation().isEmpty());
+    assertEquals(List.of(first), added.documentation());
+    assertEquals(List.of(replacement), replaced.documentation());
+    assertTrue(removed.documentation().isEmpty());
+  }
+
+  @Test void editorRejectsInvalidDocumentationMutations() {
+    PortolanAuthoring.Editor editor = new PortolanAuthoring.Editor(validRoot());
+    assertCode("MISSING_REQUIRED_METADATA", () -> editor.setDocumentation(
+        new PortolanAuthoring.Documentation(
+            "missing.json", "README.md", "describedby", "# Demo\n", null)));
+    assertCode("DUPLICATE_OUTPUT_KEY", () -> editor.setDocumentation(
+        new PortolanAuthoring.Documentation(
+            "catalog.json", "catalog.json", "describedby", "# Demo\n", null)));
+    assertCode("INVALID_REQUEST", () -> editor.removeDocumentation("README.md"));
+  }
+
+  @Test void itemLinkUsesPropertiesTitleAndRejectsMissingTitle() {
+    PortolanAuthoring.CatalogGraph titled = graph("""
+        {"spec_version":"0.3.0","documents":[
+          {"key":"catalog.json","document":{"type":"Catalog","stac_version":"1.1.0","id":"demo","title":"Demo","description":"Catalog"}},
+          {"key":"roads/collection.json","parent_key":"catalog.json","document":{"type":"Collection","stac_version":"1.1.0","id":"roads","title":"Roads","description":"Roads"}},
+          {"key":"roads/item.json","parent_key":"roads/collection.json","relation":"item","document":{"type":"Feature","stac_version":"1.1.0","id":"road-1","collection":"roads","properties":{"title":"Road 1"}}}
+        ]}
+        """);
+    String collection = text(new PortolanAuthoring.Planner().plan(titled).operations().get(1));
+    assertTrue(collection.contains("\"title\":\"Road 1\""));
+
+    PortolanAuthoring.CatalogGraph untitled = graph("""
+        {"spec_version":"0.3.0","documents":[
+          {"key":"catalog.json","document":{"type":"Catalog","stac_version":"1.1.0","id":"demo","title":"Demo","description":"Catalog"}},
+          {"key":"item.json","parent_key":"catalog.json","relation":"item","document":{"type":"Feature","stac_version":"1.1.0","id":"item","collection":"roads","properties":{}}}
+        ]}
+        """);
+    assertCode("MISSING_REQUIRED_METADATA", () -> new PortolanAuthoring.Planner().plan(untitled));
   }
 
   @Test void normalizesLinksAndPreservesJsonValues() {
@@ -141,6 +195,9 @@ class PortolanAuthoringTest {
     assertEquals("text/markdown",
         new PortolanAuthoring.Documentation("catalog.json", "README.md", "describedby", "x", null)
             .mediaType());
+    assertEquals("text/plain",
+        new PortolanAuthoring.Documentation(
+            "catalog.json", "README.txt", "describedby", "x", "text/plain").mediaType());
     assertCode("INVALID_REQUEST", () -> graph("""
         {"spec_version":"0.3.0","documents":[{"document":{}}]}
         """));

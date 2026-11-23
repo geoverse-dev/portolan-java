@@ -26,15 +26,15 @@ jobs:
       - name: Test core and enforce coverage
         run: mvn --batch-mode --no-transfer-progress clean verify
 
-  conformance-read-profile:
-    name: Conformance / Read Profile v1
+  conformance-profiles:
+    name: Conformance profiles
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
       - uses: actions/checkout@v6
         with:
           repository: geoverse-dev/portolan-conformance
-          ref: v0.2.0
+          ref: v0.3.0
           path: .ci/portolan-conformance
       - uses: actions/setup-java@v6
         with:

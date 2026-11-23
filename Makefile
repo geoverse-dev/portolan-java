@@ -2,7 +2,7 @@
 
 MVN ?= mvn
 CONFORMANCE_REPOSITORY ?= https://github.com/geoverse-dev/portolan-conformance.git
-CONFORMANCE_VERSION ?= v0.2.0
+CONFORMANCE_VERSION ?= v0.3.0
 CONFORMANCE ?= uvx --from 'git+$(CONFORMANCE_REPOSITORY)@$(CONFORMANCE_VERSION)' portolan-conformance
 CONFORMANCE_READ_REPORT ?= target/portolan-conformance-read.json
 CONFORMANCE_METADATA_REPORT ?= target/portolan-conformance-metadata.json
@@ -23,7 +23,7 @@ coverage:
 check:
 	$(MVN) verify
 
-check-conformance: check-conformance-read check-conformance-metadata
+check-conformance: check-conformance-all
 
 check-conformance-all: check-conformance-read check-conformance-metadata check-conformance-write
 

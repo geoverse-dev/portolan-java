@@ -134,7 +134,7 @@ public final class ConformanceAdapter {
       operations.add(value);
     }
     Map<String, Object> result = new LinkedHashMap<>();
-    result.put("profile_version", "1"); result.put("spec_version", plan.specVersion());
+    result.put("profile_version", "1.1"); result.put("spec_version", plan.specVersion());
     result.put("operations", operations); return result;
   }
 
@@ -156,7 +156,8 @@ public final class ConformanceAdapter {
           JsonNode document = change.get("document");
           if (document == null || !document.isObject()) throw error("INVALID_REQUEST");
           editor.addDocument(new PortolanAuthoring.ManagedDocument(key, (ObjectNode) document,
-              JsonSupport.text(change, "parent_key"), JsonSupport.text(change, "relation")));
+              JsonSupport.text(change, "parent_key"), JsonSupport.text(change, "relation"),
+              JsonSupport.text(change, "link_title")));
         }
         case "remove_document" -> editor.removeDocument(key);
         case "set_asset" -> {
@@ -169,6 +170,18 @@ public final class ConformanceAdapter {
           if (assetKey == null) throw error("INVALID_REQUEST");
           editor.removeAsset(key, assetKey);
         }
+        case "set_documentation" -> {
+          String owner = JsonSupport.text(change, "owner_key");
+          String relation = JsonSupport.text(change, "rel");
+          String content = JsonSupport.text(change, "content");
+          String mediaType = JsonSupport.text(change, "media_type");
+          if (owner == null || relation == null || content == null) {
+            throw error("INVALID_REQUEST");
+          }
+          editor.setDocumentation(new PortolanAuthoring.Documentation(
+              owner, key, relation, content, mediaType));
+        }
+        case "remove_documentation" -> editor.removeDocumentation(key);
         default -> throw error("INVALID_REQUEST");
       }
     }
@@ -196,7 +209,7 @@ public final class ConformanceAdapter {
         }
       }
       Map<String, Object> result = new LinkedHashMap<>();
-      result.put("profile_version", "1"); result.put("documents", documents);
+      result.put("profile_version", "1.1"); result.put("documents", documents);
       if (!documentation.isEmpty()) result.put("documentation", documentation);
       return result;
     } finally {

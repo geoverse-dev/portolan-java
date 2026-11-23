@@ -234,6 +234,7 @@ The actual package structure should remain deliberately small.
 ## Next steps
 
 The authoring API creates and edits catalog graphs without storage access.
+It implements SDK Write Profile v1.1, including caller-managed README and AGENTS files.
 Deletion planning requires explicit previously managed metadata keys.
 Storage materialization remains application-owned.
 
@@ -255,6 +256,7 @@ The long-term objective is simple:
 ## Local documentation
 
 - [Scope](docs/scope.md) defines what belongs in the Java core.
+- [Authoring](docs/authoring.md) describes graphs and storage-independent write plans.
 - [Examples](docs/examples.md) shows basic API usage.
 - [Development](docs/development.md) lists Maven and Make targets.
 - [Distribution](docs/distribution.md) explains releases and Maven repositories.

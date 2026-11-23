@@ -30,7 +30,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install pinned conformance runner
-        run: python -m pip install "git+https://github.com/geoverse-dev/portolan-conformance.git@v0.2.0"
+        run: python -m pip install "git+https://github.com/geoverse-dev/portolan-conformance.git@v0.3.0"
 
       - name: Check tag and project versions
         shell: bash
