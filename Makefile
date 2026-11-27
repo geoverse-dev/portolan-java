@@ -1,10 +1,12 @@
-.PHONY: help setup test coverage check check-conformance check-conformance-all prepare-conformance-adapter check-conformance-read check-conformance-write check-conformance-metadata build install parquetry-install parquetry-test clean
+.PHONY: help setup test coverage check check-conformance check-conformance-all prepare-conformance-adapter check-conformance-read check-conformance-resource-resolution check-conformance-compatibility check-conformance-write check-conformance-metadata build install parquetry-install parquetry-test clean
 
 MVN ?= mvn
 CONFORMANCE_REPOSITORY ?= https://github.com/geoverse-dev/portolan-conformance.git
-CONFORMANCE_VERSION ?= v0.3.0
+CONFORMANCE_VERSION ?= v0.4.0
 CONFORMANCE ?= uvx --from 'git+$(CONFORMANCE_REPOSITORY)@$(CONFORMANCE_VERSION)' portolan-conformance
 CONFORMANCE_READ_REPORT ?= target/portolan-conformance-read.json
+CONFORMANCE_RESOURCE_REPORT ?= target/portolan-conformance-resource-resolution.json
+CONFORMANCE_COMPATIBILITY_REPORT ?= target/portolan-conformance-compatibility.json
 CONFORMANCE_METADATA_REPORT ?= target/portolan-conformance-metadata.json
 CONFORMANCE_WRITE_REPORT ?= target/portolan-conformance-write.json
 
@@ -25,7 +27,7 @@ check:
 
 check-conformance: check-conformance-all
 
-check-conformance-all: check-conformance-read check-conformance-metadata check-conformance-write
+check-conformance-all: check-conformance-read check-conformance-resource-resolution check-conformance-compatibility check-conformance-metadata check-conformance-write
 
 prepare-conformance-adapter:
 	$(MVN) -q test-compile dependency:build-classpath \
@@ -37,6 +39,18 @@ check-conformance-read: prepare-conformance-adapter
 		--profile read \
 		--adapter '$(CURDIR)/scripts/conformance-adapter' \
 		--report '$(CONFORMANCE_READ_REPORT)'
+
+check-conformance-resource-resolution: prepare-conformance-adapter
+	$(CONFORMANCE) run \
+		--profile resource-resolution \
+		--adapter '$(CURDIR)/scripts/conformance-adapter' \
+		--report '$(CONFORMANCE_RESOURCE_REPORT)'
+
+check-conformance-compatibility: prepare-conformance-adapter
+	$(CONFORMANCE) run \
+		--profile compatibility \
+		--adapter '$(CURDIR)/scripts/conformance-adapter' \
+		--report '$(CONFORMANCE_COMPATIBILITY_REPORT)'
 
 check-conformance-metadata: prepare-conformance-adapter
 	$(CONFORMANCE) run \

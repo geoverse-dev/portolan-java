@@ -98,8 +98,9 @@ Then run all supported profiles:
 make check-conformance
 ```
 
-Run one profile with `make check-conformance-read`, `make check-conformance-metadata`,
-or `make check-conformance-write`. Use `make check-conformance-all` after updating
+Run one profile with `make check-conformance-read`, `make check-conformance-resource-resolution`,
+`make check-conformance-compatibility`, `make check-conformance-metadata`, or
+`make check-conformance-write`. Use `make check-conformance-all` after updating
 the Conformance pin to a release that contains the write profile.
 
 ## Current scope

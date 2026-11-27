@@ -9,18 +9,18 @@ does not require GitHub credentials from consumers.
 Create a tag from `main`:
 
 ```bash
-git tag v1.0.0-RC2
-git push origin v1.0.0-RC2
+git tag v1.0.0-RC3
+git push origin v1.0.0-RC3
 ```
 
 The release workflow removes the `-SNAPSHOT` suffix for that build. It runs all
 tests and creates these GitHub release assets:
 
 ```text
-portolan-java-1.0.0-RC2.jar
-portolan-java-1.0.0-RC2-sources.jar
-portolan-java-1.0.0-RC2-javadoc.jar
-portolan-java-1.0.0-RC2.pom
+portolan-java-1.0.0-RC3.jar
+portolan-java-1.0.0-RC3-sources.jar
+portolan-java-1.0.0-RC3-javadoc.jar
+portolan-java-1.0.0-RC3.pom
 SHA256SUMS
 ```
 
